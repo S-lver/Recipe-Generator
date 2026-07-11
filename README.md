@@ -90,4 +90,5 @@ smart-recipe-generator/
 MIT
 
 ## Author
-[Your Name]
+Sifiso Mokgata
+
