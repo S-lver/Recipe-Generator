@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: recipe-api
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/YOUR_REPO
+    plan: free
+    envVars:
+      - key: SPOONACULAR_API_KEY
+        sync: false

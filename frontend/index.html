@@ -1,0 +1,147 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title> Smart Recipe Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        body { background: #f8f9fa; padding: 40px 0; }
+        .card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-4px); }
+        .ingredient-badge { background: #e9ecef; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin: 3px; display: inline-block; }
+        #loading { display: none; text-align: center; margin: 40px 0; }
+        .recipe-image { width: 100%; height: 200px; object-fit: cover; border-radius: 12px 12px 0 0; }
+        .score-badge { background: #28a745; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold"> Smart Recipe Generator</h1>
+            <p class="lead text-muted">Enter ingredients in your fridge &amp; get recipe ideas instantly</p>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card p-4">
+                    <div class="mb-3">
+                        <label for="ingredientInput" class="form-label fw-semibold">What do you have?</label>
+                        <div class="input-group">
+                            <input type="text" id="ingredientInput" class="form-control form-control-lg" placeholder="e.g., chicken, rice, garlic, soy sauce" />
+                            <button class="btn btn-success btn-lg" id="searchBtn"> Find Recipes</button>
+                        </div>
+                        <div class="form-text">Separate ingredients with commas</div>
+                    </div>
+                    <div>
+                        <small class="text-muted">Quick ideas:</small>
+                        <button class="btn btn-outline-secondary btn-sm m-1 suggestion-btn" data-ingredients="chicken, rice, garlic"> Chicken & Rice</button>
+                        <button class="btn btn-outline-secondary btn-sm m-1 suggestion-btn" data-ingredients="pasta, tomato, basil, garlic"> Pasta</button>
+                        <button class="btn btn-outline-secondary btn-sm m-1 suggestion-btn" data-ingredients="eggs, cheese, milk, butter"> Omelette</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading">
+            <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Finding the best recipes for you...</p>
+        </div>
+
+        <div id="resultsContainer" class="row mt-4"></div>
+        <div id="errorMessage" class="alert alert-danger mt-4" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        const API_ENDPOINT = `${API_BASE_URL}/recommend`;
+
+        async function fetchRecipes(ingredients) {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultsContainer').innerHTML = '';
+            document.getElementById('errorMessage').style.display = 'none';
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ingredients: ingredients, top_n: 6 })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Something went wrong');
+                }
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                const errorMsg = document.getElementById('errorMessage');
+                errorMsg.textContent = '❌ Error: ' + error.message + '. Make sure the API is running on port 8000.';
+                errorMsg.style.display = 'block';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            const results = data.results || [];
+            const container = document.getElementById('resultsContainer');
+            
+            if (results.length === 0) {
+                container.innerHTML = `<div class="col-12 text-center mt-4"><p class="text-muted">😕 No recipes found. Try more common ingredients.</p></div>`;
+                return;
+            }
+
+            let html = '';
+            results.forEach(recipe => {
+                const ingredientsList = recipe.ingredients.slice(0, 5).map(ing => 
+                    `<span class="ingredient-badge">${ing}</span>`
+                ).join('');
+
+                html += `
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            <img src="${recipe.image || 'https://via.placeholder.com/300x200/eee/ccc?text=No+Image'}" class="recipe-image" alt="${recipe.title}" onerror="this.src='https://via.placeholder.com/300x200/eee/ccc?text=No+Image'" />
+                            <div class="card-body">
+                                <h5 class="card-title">${recipe.title}</h5>
+                                <div class="mb-2">
+                                    <span class="badge bg-secondary">⏱ ${recipe.readyInMinutes} min</span>
+                                    <span class="badge bg-info"> ${recipe.servings} servings</span>
+                                    <span class="score-badge">Match ${Math.round(recipe.similarity_score * 100)}%</span>
+                                </div>
+                                <p class="card-text"><small><strong>Ingredients:</strong></small><br/>${ingredientsList}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            const raw = document.getElementById('ingredientInput').value.trim();
+            if (!raw) { 
+                const errorMsg = document.getElementById('errorMessage');
+                errorMsg.textContent = ' Please enter at least one ingredient.';
+                errorMsg.style.display = 'block';
+                return; 
+            }
+            const ingredients = raw.split(',').map(i => i.trim()).filter(i => i.length > 0);
+            if (ingredients.length) fetchRecipes(ingredients);
+        });
+
+        document.querySelectorAll('.suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('ingredientInput').value = btn.dataset.ingredients;
+                document.getElementById('searchBtn').click();
+            });
+        });
+
+        document.getElementById('ingredientInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('searchBtn').click();
+        });
+    </script>
+</body>
+</html>
