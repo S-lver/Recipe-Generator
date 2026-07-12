@@ -1,9 +1,14 @@
 services:
   - type: web
-    name: recipe-api
-    runtime: docker
-    repo: https://github.com/YOUR_USERNAME/YOUR_REPO
+    name: recipe-generator-api
+    env: python
     plan: free
+    buildCommand: |
+      python -m pip install --upgrade pip
+      pip install wheel
+      pip install numpy==1.24.4
+      pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
     envVars:
       - key: SPOONACULAR_API_KEY
         sync: false
