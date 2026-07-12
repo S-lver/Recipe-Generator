@@ -48,7 +48,7 @@ class IngredientRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "🍳 Smart Recipe Generator API is running!", "status": "healthy"}
+    return {"message": " Smart Recipe Generator API is running!", "status": "healthy"}
 
 @app.get("/health")
 def health_check():
