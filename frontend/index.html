@@ -58,32 +58,45 @@
         const API_BASE_URL = 'https://smart-recipe-find.netlify.app/';
         const API_ENDPOINT = `${API_BASE_URL}/recommend`;
 
-        async function fetchRecipes(ingredients) {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('resultsContainer').innerHTML = '';
-            document.getElementById('errorMessage').style.display = 'none';
+     async function fetchRecipes(ingredients) {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('resultsContainer').innerHTML = '';
+    document.getElementById('errorMessage').style.display = 'none';
 
-            try {
-                const response = await fetch(API_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ingredients: ingredients, top_n: 6 })
-                });
+    try {
+        const response = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ingredients: ingredients, top_n: 6 })
+        });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Something went wrong');
-                }
-                const data = await response.json();
-                displayResults(data);
-            } catch (error) {
-                const errorMsg = document.getElementById('errorMessage');
-                errorMsg.textContent = '❌ Error: ' + error.message + '. Make sure the API is running on port 8000.';
-                errorMsg.style.display = 'block';
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
+        // Check if response is OK (200-299)
+        if (!response.ok) {
+            // Get the raw text response (might be HTML or plain text)
+            const errorText = await response.text();
+            console.error('API Error Response:', errorText);
+            throw new Error(`API returned ${response.status}: ${errorText.substring(0, 100)}`);
         }
+
+        // Check if response has content
+        const contentLength = response.headers.get('Content-Length');
+        if (contentLength === '0' || contentLength === null) {
+            throw new Error('API returned empty response');
+        }
+
+        // Now parse JSON safely
+        const data = await response.json();
+        displayResults(data);
+        
+    } catch (error) {
+        console.error('Full error:', error);
+        const errorMsg = document.getElementById('errorMessage');
+        errorMsg.textContent = `❌ Error: ${error.message}. Check the console for details.`;
+        errorMsg.style.display = 'block';
+    } finally {
+        document.getElementById('loading').style.display = 'none';
+    }
+}
 
         function displayResults(data) {
             const results = data.results || [];
